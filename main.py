@@ -1,12 +1,19 @@
-from mnist import MNIST
 import numpy as np
-from FourLayerNet import FourLayerNet
+from mnist import MNIST
+from Params import Params, paramsSum
 
 mndata = MNIST("samples")
-images, labels = mndata.load_training()
-image = np.array(images[0])
+images, lables = mndata.load_training()
 
+A = np.array([
+    [1, 2, 3],
+    [4, 5, 6]
+])
+x = np.array([1, 2, 3])
 
-net = FourLayerNet(len(images[0]), 16, 16, 10)
-desiredOutputLayer = np.array(list(range(10)))
-net.testCostGradient(images[0], desiredOutputLayer)
+params = Params([A], [x])
+
+paramsList = [Params([n * A], [n * x]) for n in [1, 2, 3]]
+print(sum(paramsList) / len(paramsList))
+
+#net = FourLayerNet(len(images[0]), 16, 16, 10)
