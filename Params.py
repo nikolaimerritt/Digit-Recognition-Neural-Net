@@ -2,6 +2,7 @@ from typing import List
 import numpy as np
 
 class Params:
+    ZERO = 0
     def __init__(self, weights: List[np.ndarray], biases: List[np.ndarray]):
         self.weights = weights
         self.biases = biases
@@ -21,7 +22,7 @@ class Params:
         return Params(newWeights, newBiases)
     
     def __radd__(self, other):
-        if other == 0:
+        if other == 0 or other == Params.ZERO:
             return self
         else:
             return other + self

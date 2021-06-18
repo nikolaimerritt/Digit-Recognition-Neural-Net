@@ -5,7 +5,6 @@ from Params import Params, paramsSum
 def relu(x):
     return x * (x > 0)
 
-
 def drelu(x):
     return 1.0 * (x > 0)
 
@@ -14,6 +13,9 @@ def squaredNorm(ndarray):
 
 def sumOfSquaresOfEntries(ndarrays):
     return sum(squaredNorm(ndarray) for ndarray in ndarrays)
+
+def mean(stuff):
+    return sum(stuff) / len(stuff)
 
 
 def getRandomParams(inputLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdLayerSize: int) -> Params:        
@@ -91,21 +93,61 @@ def paramsGrad(self, inputLayer: np.ndarray, desiredOutputLayer: np.ndarray, par
     return Params(weightsGradient, biasesGradient)
 
 
-def meanCosts(self, inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray]) -> float:
+def meanCost(inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray], params: Params) -> float:
     costs = [
-        squaredNorm(outputLayer(inputLayer) - desiredOutputLayer)
+        squaredNorm(outputLayer(inputLayer, params) - desiredOutputLayer)
         for inputLayer, desiredOutputLayer in zip(inputLayers, desiredOutputLayers)
     ]
-    return np.mean(costs)
+    return mean(costs)
 
 
-def meanParamsGrad(self, inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray]) -> Params:
+def meanParamsGrad(inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray]) -> Params:
     paramsGrads = [
         paramsGrad(inputLayer, desiredOutputLayer) 
         for inputLayer, desiredOutputLayer in zip(inputLayers, desiredOutputLayers)
     ]
-    return sum(paramsGrads) / len(paramsGrads)
+    return mean(paramsGrads)
 
 
-def gradientDescent(self, inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray], params: Params) -> Params:
-    stepSize = 0.1
+def gradDescentStep(inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray], params: Params, isFirstStep = False) -> Params:
+    origCost = meanCost(inputLayers, desiredOutputLayers, params)
+    grad = meanParamsGrad(inputLayers, desiredOutputLayers, params)
+    gradSquaredNorm = grad.squaredNorm()
+    stepSize = gradSquaredNorm ** (-1/2)  # Order (1/L), L Lipschitz const, norm of grad approx. to L
+    
+    # taking step of optimal step size
+    paramsStepTrial = Params.ZERO
+    maxStepTrials = 10
+    for _ in range(maxStepTrials):
+        if isFirstStep:
+            paramsStepTrial = -stepSize * grad
+        else:
+            paramsStepTrial = -stepSize * grad + 0.9 * params    # Momentum gradient descent
+        
+        trialCost = meanCost(inputLayers, desiredOutputLayers, params + paramsStepTrial)
+        optimalStepSizeFound = trialCost < origCost + 0.9 * -stepSize * gradSquaredNorm # Armijo - Goldstein
+        if optimalStepSizeFound:
+            break
+        else:
+            stepSize = 0.5 * stepSize
+    
+    return params + paramsStepTrial
+
+
+def batchGradDescent(allInputLayers: List[np.ndarray], allDesiredOutputLayers: List[np.ndarray], params: Params, batchSize=50, descents=100) -> Params:
+    batchIdx = 0
+    for i in range(descents):
+        batchIdx += batchSize 
+        if batchIdx + batchSize >= len(allInputLayers):
+            batchIdx = 0
+        
+        params = gradDescentStep(
+            allInputLayers[batchIdx : batchIdx + batchSize], 
+            allDesiredOutputLayers[batchIdx : batchIdx + batchSize], 
+            params, 
+            isFirstStep = (i == 0)
+        )
+    
+    return params
+
+
