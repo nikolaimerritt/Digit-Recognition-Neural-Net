@@ -1,6 +1,7 @@
+from random import shuffle
 from typing import List, Tuple
 import numpy as np
-from Params import Params, paramsSum
+from Params import Params
 
 def relu(x):
     return x * (x > 0)
@@ -18,8 +19,8 @@ def mean(stuff):
     return sum(stuff) / len(stuff)
 
 
-def getRandomParams(inputLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdLayerSize: int) -> Params:        
-    fstWeights = np.random.rand(fstLayerSize, inputLayerSize)
+def getRandomParams(inLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdLayerSize: int) -> Params:        
+    fstWeights = np.random.rand(fstLayerSize, inLayerSize)
     fstBiases = np.random.rand(fstLayerSize)
     
     sndWeights = np.random.rand(sndLayerSize, fstLayerSize)
@@ -31,14 +32,18 @@ def getRandomParams(inputLayerSize: int, fstLayerSize: int, sndLayerSize: int, t
     return Params([fstWeights, sndWeights, thdWeights], [fstBiases, sndBiases, thdBiases])
 
 
-def outputLayer(inputLayer: np.ndarray, params: Params):
-    layer = inputLayer
+def calcOutLayer(inLayer: np.ndarray, params: Params):
+    layer = inLayer
     for weight, bias in zip(params.weights, params.biases):
         layer = relu(weight @ layer + bias)
     return layer
     
 
-def paramsGrad(self, inputLayer: np.ndarray, desiredOutputLayer: np.ndarray, params: Params):
+def singleCost(inLayer: np.ndarray, desOutLayer: np.ndarray, params: Params):
+    return squaredNorm(calcOutLayer(inLayer, params) - desOutLayer)
+
+
+def paramsGrad(inLayer: np.ndarray, desOutLayer: np.ndarray, params: Params):
     """ computes the gradient of each weight and bias with one single output layer """
     """ THE MATHS: 
     Write: 
@@ -48,10 +53,10 @@ def paramsGrad(self, inputLayer: np.ndarray, desiredOutputLayer: np.ndarray, par
         f, s, t as the 1st, 2nd, 3rd biases
         w as the desired output layer
     """
-    a = inputLayer
+    a = inLayer
     F, S, T = params.weights
     f, s, t = params.biases
-    w = desiredOutputLayer
+    w = desOutLayer
     """
     Then the cost is given by:
         x_l = F_lm a_m + f_l                    (sum over m)
@@ -71,7 +76,7 @@ def paramsGrad(self, inputLayer: np.ndarray, desiredOutputLayer: np.ndarray, par
     """
     dC_dz = 2 * (relu(z) - w) * drelu(z)
     dC_dy = (np.transpose(T) @ dC_dz) * drelu(y)
-    dC_dx = drelu(x) * np.sum(dC_dy)
+    dC_dx = drelu(x) * (np.transpose(S) @ dC_dy)
     """
     This means the derivatives wrt the parameters are:
         dC/dt_j = dC/dz_j       dC/dT_jk = dC/dz_j r(y_k)
@@ -93,60 +98,58 @@ def paramsGrad(self, inputLayer: np.ndarray, desiredOutputLayer: np.ndarray, par
     return Params(weightsGradient, biasesGradient)
 
 
-def meanCost(inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray], params: Params) -> float:
+def meanCost(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params) -> float:
     costs = [
-        squaredNorm(outputLayer(inputLayer, params) - desiredOutputLayer)
-        for inputLayer, desiredOutputLayer in zip(inputLayers, desiredOutputLayers)
+        singleCost(inLayer, desOutLayer) for inLayer, desOutLayer in zip(inLayers, desOutLayers)
     ]
     return mean(costs)
 
 
-def meanParamsGrad(inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray]) -> Params:
+def meanParamsGrad(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params) -> Params:
     paramsGrads = [
-        paramsGrad(inputLayer, desiredOutputLayer) 
-        for inputLayer, desiredOutputLayer in zip(inputLayers, desiredOutputLayers)
+        paramsGrad(inLayer, desOutLayer, params) 
+        for inLayer, desOutLayer in zip(inLayers, desOutLayers)
     ]
     return mean(paramsGrads)
 
 
-def gradDescentStep(inputLayers: List[np.ndarray], desiredOutputLayers: List[np.ndarray], params: Params, isFirstStep = False) -> Params:
-    origCost = meanCost(inputLayers, desiredOutputLayers, params)
-    grad = meanParamsGrad(inputLayers, desiredOutputLayers, params)
+def gradDescentStep(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params) -> Params:
+    origCost = meanCost(inLayers, desOutLayers, params)
+    grad = meanParamsGrad(inLayers, desOutLayers, params)
     gradSquaredNorm = grad.squaredNorm()
-    stepSize = gradSquaredNorm ** (-1/2)  # Order (1/L), L Lipschitz const, norm of grad approx. to L
     
+    if gradSquaredNorm == 0:
+        return params
+        
     # taking step of optimal step size
+    stepSize = gradSquaredNorm ** (-1/2)  # Order (1/L), L Lipschitz const, norm of grad approx. to L
     paramsStepTrial = Params.ZERO
     maxStepTrials = 10
     for _ in range(maxStepTrials):
-        if isFirstStep:
-            paramsStepTrial = -stepSize * grad
-        else:
-            paramsStepTrial = -stepSize * grad + 0.9 * params    # Momentum gradient descent
+        paramsStepTrial = -stepSize * grad 
         
-        trialCost = meanCost(inputLayers, desiredOutputLayers, params + paramsStepTrial)
+        trialCost = meanCost(inLayers, desOutLayers, params + paramsStepTrial)
         optimalStepSizeFound = trialCost < origCost + 0.9 * -stepSize * gradSquaredNorm # Armijo - Goldstein
         if optimalStepSizeFound:
             break
         else:
             stepSize = 0.5 * stepSize
-    
     return params + paramsStepTrial
 
 
-def batchGradDescent(allInputLayers: List[np.ndarray], allDesiredOutputLayers: List[np.ndarray], params: Params, batchSize=50, descents=100) -> Params:
+def batchGradDescent(allinLayers: List[np.ndarray], alldesOutLayers: List[np.ndarray], params: Params, batchSize=50, descents=1000) -> Params:
     batchIdx = 0
     for i in range(descents):
         batchIdx += batchSize 
-        if batchIdx + batchSize >= len(allInputLayers):
+        if batchIdx + batchSize >= len(allinLayers):
             batchIdx = 0
         
-        params = gradDescentStep(
-            allInputLayers[batchIdx : batchIdx + batchSize], 
-            allDesiredOutputLayers[batchIdx : batchIdx + batchSize], 
-            params, 
-            isFirstStep = (i == 0)
-        )
+        inLayers = allinLayers[batchIdx : batchIdx + batchSize]
+        desOutLayers = alldesOutLayers[batchIdx : batchIdx + batchSize]
+        shuffle(inLayers)
+        shuffle(desOutLayers)
+        
+        params = gradDescentStep(inLayers, desOutLayers, params)
     
     return params
 
