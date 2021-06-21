@@ -18,6 +18,11 @@ def sumOfSquaresOfEntries(ndarrays):
 def mean(stuff):
     return sum(stuff) / len(stuff)
 
+def softmax(x):
+    xmax = np.max(x)
+    exponentials = np.exp(x - xmax)
+    return exponentials / sum(exponentials)
+
 
 def getRandomParams(inLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdLayerSize: int) -> Params:        
     fstWeights = np.random.rand(fstLayerSize, inLayerSize)
@@ -32,11 +37,18 @@ def getRandomParams(inLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdL
     return Params([fstWeights, sndWeights, thdWeights], [fstBiases, sndBiases, thdBiases])
 
 
+def calcHiddenLayers(inLayer: np.ndarray, params: Params):
+    prevLayer = inLayer
+    layers = []
+    for i in range(params.count):
+        layer = params.weights[i] @ prevLayer + params.biases[i]
+        layers.append(layer)
+        prevLayer = relu(layer)
+    return layers
+
+
 def calcOutLayer(inLayer: np.ndarray, params: Params):
-    layer = inLayer
-    for weight, bias in zip(params.weights, params.biases):
-        layer = relu(weight @ layer + bias)
-    return layer
+    return softmax(calcHiddenLayers(inLayer, params)[-1])
     
 
 def singleCost(inLayer: np.ndarray, desOutLayer: np.ndarray, params: Params):
@@ -63,18 +75,17 @@ def paramsGrad(inLayer: np.ndarray, desOutLayer: np.ndarray, params: Params):
         y_k = S_kl r(x_l) + s_k                 (sum over l)
         z_j = T_jk r(y_k) + t_j                 (sum over k)
 
-        C = (r(z_j) - w_j)^2                    (sum over j)
+        C = -w_j log(softmax(z)_j)                        (sum over j)
+          = -w_j z_j + w_j log(exp(z_1) + ... + exp(z_n)) (sum over j) 
     """
-    x = F @ a + f
-    y = S @ relu(x) + s
-    z = T @ relu(y) + t
+    x, y, z = calcHiddenLayers(inLayer, params)
     """
     So the derivatives of C wrt x, y, z are:
-        dC/dz_j = 2 (r(z_j) - w_j) r'(z_j)
+        dC/dz_j = -w_j + w_j softmax(z)_j
         dC/dy_k =  T_jk dC/dz_j r'(y_k)          (sum over j)
         dC/dx_l = dC/dy_k r'(x_l)               (sum over k)
     """
-    dC_dz = 2 * (relu(z) - w) * drelu(z)
+    dC_dz = -w + w * softmax(z)
     dC_dy = (np.transpose(T) @ dC_dz) * drelu(y)
     dC_dx = drelu(x) * (np.transpose(S) @ dC_dy)
     """

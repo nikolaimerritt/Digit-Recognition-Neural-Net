@@ -14,6 +14,7 @@ class Params:
     def __init__(self, weights: List[np.ndarray], biases: List[np.ndarray]):
         self.weights = weights
         self.biases = biases
+        self.count = len(self.weights)
     
 
     def saveToFile(self, folder="params-values"):
