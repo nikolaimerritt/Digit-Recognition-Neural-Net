@@ -2,8 +2,6 @@ from typing import List
 import numpy as np
 import os
 
-from numpy.core.fromnumeric import sort
-
 def txtsInFolder(folder: str):
     return [f for f in os.listdir(folder) if f.endswith(".txt")]
 
@@ -23,31 +21,20 @@ class Params:
         
         for i in range(len(self.biases)):
             np.savetxt(f"{folder}/biases/bias{i}.txt", self.biases[i])
-    
 
-    def loadFromFile(folder="params-values"):
-        weights = []
-        for weightFile in sorted(txtsInFolder(f"{folder}/weights")):
-            weights.append(np.genfromtxt(f"{folder}/weights/{weightFile}"))
-        
-        biases = []
-        for biasFile in sorted(txtsInFolder(f"{folder}/biases")):
-            biases.append(np.genfromtxt(f"{folder}/biases/{biasFile}"))
-        
-        return Params(weights, biases)
 
-        
     def __add__(self, other):
         newWeights = [myWeight + theirWeight for myWeight, theirWeight in zip(self.weights, other.weights)]
         newBiases = [myBias + theirBias for myBias, theirBias in zip(self.biases, other.biases)]
         return Params(newWeights, newBiases)
     
+
     def __sub__(self, other):
         return self + (-1) * other
     
 
     def __radd__(self, other):
-        if other == 0 or other == Params.ZERO:
+        if other == Params.ZERO:
             return self
         else:
             return other + self
@@ -67,3 +54,16 @@ class Params:
 
     def squaredNorm(self):
         return sum((weight * weight).sum() for weight in self.weights) + sum((bias * bias).sum() for bias in self.biases)
+    
+
+
+def loadFromFile(folder="params-values"):
+    weights = []
+    for weightFile in sorted(txtsInFolder(f"{folder}/weights")):
+        weights.append(np.genfromtxt(f"{folder}/weights/{weightFile}"))
+    
+    biases = []
+    for biasFile in sorted(txtsInFolder(f"{folder}/biases")):
+        biases.append(np.genfromtxt(f"{folder}/biases/{biasFile}"))
+    
+    return Params(weights, biases)

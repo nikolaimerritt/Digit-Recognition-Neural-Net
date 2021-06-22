@@ -1,3 +1,4 @@
+from Params import loadFromFile
 import FourLayerNet
 import numpy as np
 from mnist import MNIST
@@ -13,7 +14,7 @@ desOutLayers = [outLayerFromLabel(label) for label in labels]
 
 inLayer = np.array(images[0])
 desOutLayer = desOutLayers[0]
-params = FourLayerNet.getRandomParams(len(images[0]), 16, 16, 10)
+params = loadFromFile()
 gradToTest = FourLayerNet.paramsGrad(inLayer, desOutLayer, params)
 epsilon = 10 ** (-5)
 
@@ -40,10 +41,8 @@ def relErrorInBias(biasNum, biasIdx):
     componentToTest = gradToTest.biases[biasNum][biasIdx]
     numericComponent = numericBiasDeriv(biasNum, biasIdx)
     error = abs(componentToTest - numericComponent)
-    if numericComponent == 0:
-        return error
-    else:
-        return error / numericComponent
+    #print(f"nc = {numericComponent}, ct = {componentToTest}, error is {error}")
+    return error
 
 
 def numericWeightDeriv(weightNum, row, col):
@@ -55,19 +54,15 @@ def numericWeightDeriv(weightNum, row, col):
 def relErrorInWeight(weightNum, row, col):
     componentToTest = gradToTest.weights[weightNum][row][col]
     numericComponent = numericWeightDeriv(weightNum, row, col)
-    error = abs(componentToTest - numericComponent)
-    if numericComponent == 0:
-        return error
-    else:
-        return error / numericComponent
+    return abs(componentToTest - numericComponent)
 
 
 def testAllBiases():
     for biasNum in [2, 1, 0]:
         for biasIdx in range(len(params.biases[biasNum])):
             relError = relErrorInBias(biasNum, biasIdx)
-            if relError > 10 ** (-4):
-                print(f"entry {biasIdx} of bias {biasNum} failed test with rel error {relError}")
+            if relError > epsilon:
+                print(f"entry {biasIdx} of bias {biasNum} failed test with error {relError}")
                 return 
     
 
@@ -77,8 +72,8 @@ def testAllWeights():
         for row in range(len(weight)):
             for col in range(len(weight[row])):
                 relError = relErrorInWeight(weightNum, row, col)
-                if relError > 10 ** (-4):
-                    print(f"row, col {row}, {col} of weight {weightNum} failed test with rel error {relError}")
+                if relError > epsilon:
+                    print(f"row {row}, col {col} of weight {weightNum} failed test with error {relError}")
                     return
 
 testAllBiases()
