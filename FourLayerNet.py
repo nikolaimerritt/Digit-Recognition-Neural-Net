@@ -21,6 +21,9 @@ def softmax(x):
     return exponentials / exponentials.sum()
 
 
+PREVENT_LOG_0: float = 10 ** -9
+
+
 def getRandomParams(inLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdLayerSize: int) -> Params:        
     fstWeights = np.random.rand(fstLayerSize, inLayerSize)
     fstBiases = np.random.rand(fstLayerSize)
@@ -47,11 +50,8 @@ def calcOutLayer(inLayer: np.ndarray, params: Params):
     
 
 def singleCost(inLayer: np.ndarray, desOutLayer: np.ndarray, params: Params):
-    _, _, z = calcHiddenLayers(inLayer, params)
-    zMax = np.max(z)
-    logOfExps = z + np.log(np.sum(np.exp(z - zMax))) # zMax + log(exp(z_i - zMax))
-    return -desOutLayer @ z + sum(desOutLayer) * logOfExps
-    #return -desOutLayer @ np.log(softmax(outLayer))  # 10^-9 used to avoid log(0)
+    outLayer = calcOutLayer(inLayer, params)
+    return -desOutLayer @ np.log(outLayer + PREVENT_LOG_0)
 
 
 def paramsGrad(inLayer: np.ndarray, desOutLayer: np.ndarray, params: Params):
@@ -84,7 +84,7 @@ def paramsGrad(inLayer: np.ndarray, desOutLayer: np.ndarray, params: Params):
         dC/dy_k =  T_jk dC/dz_j r'(y_k)          (sum over j)
         dC/dx_l = dC/dy_k r'(x_l)               (sum over k)
     """
-    dC_dz = -w + sum(w) * softmax(z)
+    dC_dz = -w + sum(w) * softmax(z + PREVENT_LOG_0)
     dC_dy = (np.transpose(T) @ dC_dz) * drelu(y)
     dC_dx = drelu(x) * (np.transpose(S) @ dC_dy)
     """
@@ -128,37 +128,40 @@ def gradDescentStep(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], 
     grad = meanParamsGrad(inLayers, desOutLayers, params)
     cost = meanCost(inLayers, desOutLayers, params)
     gradSquaredNorm = grad.squaredNorm()
+    print(f"cost = {cost:.4f}, \t gsn = {gradSquaredNorm:.4f}")
     
     if gradSquaredNorm == 0:
         return params
     
-    stepSize = gradSquaredNorm ** (-1) * 2 ** (-7)  # Order (1/L^2), L Lipschitz const, norm of grad approx. to L
+    stepSize = gradSquaredNorm ** (-1/2) # Order (1/L^2), L Lipschitz const, norm of grad approx. to L
     
     # finding optimum step size
-    maxStepSizeTrials = 15
+    
+    maxStepSizeTrials = 10
     for i in range(maxStepSizeTrials):
         paramsTrial = params - stepSize * grad
         trialCost = meanCost(inLayers, desOutLayers, paramsTrial)
-        if trialCost < cost - 0.9 * stepSize * gradSquaredNorm: # <= cost
-            print(f"cost = {cost:.4f}, \t gsn = {gradSquaredNorm:.4f}\t i={i}")
+        if trialCost < cost - stepSize * gradSquaredNorm: # <= cost
             return paramsTrial
         else:
-            print(f"cost = {cost:.4f}, \t gsn = {gradSquaredNorm:.4f}\t optimal not found")
             stepSize = stepSize / 2
+    
+    
     return params - stepSize * grad
 
 
-def batchGradDescent(allinLayers: List[np.ndarray], alldesOutLayers: List[np.ndarray], params: Params, batchSize=256, descents=(10 ** 4)) -> Params:
-    batchIdx = 0
-    for _ in range(descents):
-        batchIdx += batchSize 
-        if batchIdx + batchSize >= len(allinLayers):
-            batchIdx = 0
-        
-        inLayers = allinLayers[batchIdx : batchIdx + batchSize]
-        desOutLayers = alldesOutLayers[batchIdx : batchIdx + batchSize]
-        
-        params = gradDescentStep(inLayers, desOutLayers, params)
+def batchGradDescent(inLayers: List[np.ndarray], outLayers: List[np.ndarray], params: Params, batchSize=1000, descents=(10 ** 5)) -> Params:
+    indices = list(range(len(inLayers)))
+    for i in range(descents):
+        shuffle(indices)
+        inBatch = np.array([inLayers[indices[i]] for i in range(batchSize)])
+        desOutBatch = np.array([outLayers[indices[i]] for i in range(batchSize)])
+        params = gradDescentStep(inBatch, desOutBatch, params)
+
+        """
+        if i % 100 == 0:
+            params.saveToFile()
+        """
     
     return params
 

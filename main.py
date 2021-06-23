@@ -1,5 +1,6 @@
 import numpy as np
 from mnist import MNIST
+from numpy.lib import load
 import FourLayerNet
 from Params import loadFromFile
 
@@ -11,9 +12,13 @@ images, labels = mndata.load_training()
 inputLayers = [np.array(img) for img in images]
 outputLayers = [outLayerFromLabel(l) for l in labels]
 
+
 params = FourLayerNet.getRandomParams(len(inputLayers[0]), 16, 16, 10)
+#params = loadFromFile()
 params = FourLayerNet.batchGradDescent(inputLayers, outputLayers, params)
-params.saveToFile()
+#params.saveToFile()
+
+
 guess = FourLayerNet.calcOutLayer(inputLayers[0], params)
 print(guess)
 print(labels[0])
