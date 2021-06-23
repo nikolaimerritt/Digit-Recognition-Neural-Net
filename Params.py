@@ -24,6 +24,9 @@ class Params:
 
 
     def __add__(self, other):
+        if other == Params.ZERO:
+            return self
+            
         newWeights = [myWeight + theirWeight for myWeight, theirWeight in zip(self.weights, other.weights)]
         newBiases = [myBias + theirBias for myBias, theirBias in zip(self.biases, other.biases)]
         return Params(newWeights, newBiases)

@@ -124,45 +124,37 @@ def meanParamsGrad(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], p
     return (1/len(paramsGrads)) * sum(paramsGrads, start=Params.ZERO) 
 
 
-def gradDescentStep(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params) -> Params:
-    grad = meanParamsGrad(inLayers, desOutLayers, params)
-    cost = meanCost(inLayers, desOutLayers, params)
-    gradSquaredNorm = grad.squaredNorm()
-    print(f"cost = {cost:.4f}, \t gsn = {gradSquaredNorm:.4f}")
+def proportionCorrect(inLayers, desOutLayers, params):
+    correct = 0
+    for inLayer, desOutLayer in zip(inLayers, desOutLayers):
+        outLayer = calcOutLayer(inLayer, params)
+        if np.argmax(outLayer) == np.argmax(desOutLayer):
+            correct += 1
     
-    if gradSquaredNorm == 0:
-        return params
-    
-    stepSize = gradSquaredNorm ** (-1/2) # Order (1/L^2), L Lipschitz const, norm of grad approx. to L
-    
-    # finding optimum step size
-    
-    maxStepSizeTrials = 10
-    for i in range(maxStepSizeTrials):
-        paramsTrial = params - stepSize * grad
-        trialCost = meanCost(inLayers, desOutLayers, paramsTrial)
-        if trialCost < cost - stepSize * gradSquaredNorm: # <= cost
-            return paramsTrial
-        else:
-            stepSize = stepSize / 2
-    
-    
-    return params - stepSize * grad
+    return correct / len(desOutLayers)
 
 
-def batchGradDescent(inLayers: List[np.ndarray], outLayers: List[np.ndarray], params: Params, batchSize=1000, descents=(10 ** 5)) -> Params:
+def batchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params, batchSize=256, descents=10 ** 4) -> Params:
+    learningRate = 10 ** -4
+    momentum = 0.9
+
     indices = list(range(len(inLayers)))
-    for i in range(descents):
+    paramsChange = Params.ZERO
+    
+    for descent in range(descents):
         shuffle(indices)
         inBatch = np.array([inLayers[indices[i]] for i in range(batchSize)])
-        desOutBatch = np.array([outLayers[indices[i]] for i in range(batchSize)])
-        params = gradDescentStep(inBatch, desOutBatch, params)
+        desOutBatch = np.array([desOutLayers[indices[i]] for i in range(batchSize)])
+        
+        futureGrad = meanParamsGrad(inBatch, desOutBatch, params + momentum * paramsChange)
+        paramsChange = momentum * paramsChange + (-learningRate) * futureGrad
+        params += paramsChange
 
-        """
-        if i % 100 == 0:
+
+        if descent > 0 and descent % 500 == 0:
+            print(f"saving :) \t mean cost = {meanCost(inLayers, desOutLayers, params):.6f}")
             params.saveToFile()
-        """
-    
+
     return params
 
 
