@@ -1,6 +1,7 @@
 from random import shuffle
 from typing import List, Tuple
 import numpy as np
+from numpy.core.fromnumeric import mean
 from Params import Params
 
 def relu(x):
@@ -23,18 +24,26 @@ def softmax(x):
 
 PREVENT_LOG_0: float = 10 ** -9
 
+def unbiasedVector(size):
+    """ vector is uniform, mean 0, entries [-1, 1)"""
+    return 2 * np.random.rand(size) - 1
+
+def unbiasedMatrix(rows, cols):
+    """ matrix is uniform, mean 0, entries [-1, 1)"""
+    return 2 * np.random.rand(rows, cols) - 1
+
 
 def getRandomParams(inLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdLayerSize: int) -> Params:        
-    fstWeights = np.random.rand(fstLayerSize, inLayerSize)
-    fstBiases = np.random.rand(fstLayerSize)
+    fstWeights = unbiasedMatrix(fstLayerSize, inLayerSize)
+    fstBiases = unbiasedVector(fstLayerSize) 
     
-    sndWeights = np.random.rand(sndLayerSize, fstLayerSize)
-    sndBiases = np.random.rand(sndLayerSize)
+    sndWeights = unbiasedMatrix(sndLayerSize, fstLayerSize) 
+    sndBiases = unbiasedVector(sndLayerSize)
     
-    thdWeights = np.random.rand(thdLayerSize, sndLayerSize)
-    thdBiases = np.random.rand(thdLayerSize)
+    thdWeights = unbiasedMatrix(thdLayerSize, sndLayerSize)
+    thdBiases = unbiasedVector(thdLayerSize)
 
-    return Params([fstWeights, sndWeights, thdWeights], [fstBiases, sndBiases, thdBiases]) / 100
+    return Params([fstWeights, sndWeights, thdWeights], [fstBiases, sndBiases, thdBiases])
 
 
 def calcHiddenLayers(inLayer: np.ndarray, params: Params):
@@ -124,22 +133,31 @@ def meanParamsGrad(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], p
     return (1/len(paramsGrads)) * sum(paramsGrads, start=Params.ZERO) 
 
 
+def recogniseDigit(inLayer, params):
+    outLayer = calcOutLayer(inLayer, params)
+    return np.argmax(outLayer)
+
+
 def proportionCorrect(inLayers, desOutLayers, params):
     correct = 0
     for inLayer, desOutLayer in zip(inLayers, desOutLayers):
-        outLayer = calcOutLayer(inLayer, params)
-        if np.argmax(outLayer) == np.argmax(desOutLayer):
+        guess = recogniseDigit(inLayer, params)
+        actual = np.argmax(desOutLayer)
+        if guess == actual:
             correct += 1
     
     return correct / len(desOutLayers)
 
 
-def batchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params, batchSize=256, descents=10 ** 4) -> Params:
+def batchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params, batchSize=256, descents=10 ** 5) -> Params:
     learningRate = 10 ** -4
     momentum = 0.9
 
     indices = list(range(len(inLayers)))
     paramsChange = Params.ZERO
+
+    origMeanCost = meanCost(inLayers, desOutLayers, params)
+    print(f"mean cost before gradient descent: {origMeanCost:.6f}")
     
     for descent in range(descents):
         shuffle(indices)
@@ -152,7 +170,8 @@ def batchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray],
 
 
         if descent > 0 and descent % 500 == 0:
-            print(f"saving :) \t mean cost = {meanCost(inLayers, desOutLayers, params):.6f}")
+            cost = meanCost(inLayers, desOutLayers, params)
+            print(f"saving :) \t mean cost = {cost:.6f} \t orig mean cost lowered to {(100 * cost / origMeanCost):.4f}%")
             params.saveToFile()
 
     return params
