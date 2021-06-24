@@ -1,6 +1,7 @@
 from typing import List
 import numpy as np
 from mnist import MNIST
+from numpy.lib.type_check import imag
 import FourLayerNet, Params
 
 def outLayerFromLabel(label: int):
@@ -19,13 +20,12 @@ def mnistDataToNumpyArrays(images, labels):
 
 
 mndata = MNIST("samples")
-images, _ = mndata.load_training()
 
 trainingIn, trainingDesOut = mnistDataToNumpyArrays(*mndata.load_training())
 # testingInLayers, testingDesOutLayers = mnistDataToNumpyArrays(*mndata.load_testing())
 
 
-# params = FourLayerNet.getRandomParams(len(trainingIn[0]), 16, 16, 10)
-params = FourLayerNet.batchGradDescent(trainingIn, trainingDesOut, Params.loadFromFile())
+params = FourLayerNet.getRandomParams(len(trainingIn[0]), 16, 16, 10)
+params = FourLayerNet.batchGradDescent(trainingIn, trainingDesOut, params)
 # print(f"{100 * FourLayerNet.proportionCorrect(trainingInLayers, trainingDesOutLayers, params):.2f}% of the training data guessed correctly")
 # print(f"{100 * FourLayerNet.proportionCorrect(testingInLayers, testingDesOutLayers, params):.2f}% of the testing data guessed correctly")

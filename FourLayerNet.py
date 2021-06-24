@@ -26,11 +26,11 @@ PREVENT_LOG_0: float = 10 ** -9
 
 def unbiasedVector(size):
     """ vector is uniform, mean 0, entries [-1, 1)"""
-    return 2 * np.random.rand(size) - 1
+    return np.random.rand(size)
 
 def unbiasedMatrix(rows, cols):
     """ matrix is uniform, mean 0, entries [-1, 1)"""
-    return 2 * np.random.rand(rows, cols) - 1
+    return np.random.rand(rows, cols)
 
 
 def getRandomParams(inLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdLayerSize: int) -> Params:        
@@ -43,7 +43,7 @@ def getRandomParams(inLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdL
     thdWeights = unbiasedMatrix(thdLayerSize, sndLayerSize)
     thdBiases = unbiasedVector(thdLayerSize)
 
-    return Params([fstWeights, sndWeights, thdWeights], [fstBiases, sndBiases, thdBiases])
+    return Params([fstWeights, sndWeights, thdWeights], [fstBiases, sndBiases, thdBiases]) / 100
 
 
 def calcHiddenLayers(inLayer: np.ndarray, params: Params):
@@ -155,9 +155,6 @@ def batchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray],
 
     indices = list(range(len(inLayers)))
     paramsChange = Params.ZERO
-
-    origMeanCost = meanCost(inLayers, desOutLayers, params)
-    print(f"mean cost before gradient descent: {origMeanCost:.6f}")
     
     for descent in range(descents):
         shuffle(indices)
@@ -170,10 +167,7 @@ def batchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray],
 
 
         if descent > 0 and descent % 500 == 0:
-            cost = meanCost(inLayers, desOutLayers, params)
-            print(f"saving :) \t mean cost = {cost:.6f} \t orig mean cost lowered to {(100 * cost / origMeanCost):.4f}%")
+            print(f"saving :) \t mean cost = {meanCost(inLayers, desOutLayers, params):.6f} \t grad sq norm = {futureGrad.squaredNorm():.6f}")
             params.saveToFile()
 
     return params
-
-
