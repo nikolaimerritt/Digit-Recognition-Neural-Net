@@ -1,5 +1,5 @@
-from Params import loadFromFile
-import FourLayerNet
+from .Params import loadFromFile
+from .FourLayerNet import paramsGrad, singleCost
 import numpy as np
 from mnist import MNIST
 
@@ -15,7 +15,7 @@ desOutLayers = [outLayerFromLabel(label) for label in labels]
 inLayer = np.array(images[0])
 desOutLayer = desOutLayers[0]
 params = loadFromFile()
-gradToTest = FourLayerNet.paramsGrad(inLayer, desOutLayer, params)
+gradToTest = paramsGrad(inLayer, desOutLayer, params)
 epsilon = 10 ** (-5)
 
 
@@ -33,21 +33,19 @@ def basisWeight(weightNum, row, col):
 
 def numericBiasDeriv(biasNum, biasIdx):
     basisParam = basisBias(biasNum, biasIdx)
-    change = lambda h: FourLayerNet.singleCost(inLayer, desOutLayer, params + h * basisParam)
+    change = lambda h: singleCost(inLayer, desOutLayer, params + h * basisParam)
     return (change(epsilon) - change(-epsilon)) / (2 * epsilon)
 
 
 def relErrorInBias(biasNum, biasIdx):
     componentToTest = gradToTest.biases[biasNum][biasIdx]
     numericComponent = numericBiasDeriv(biasNum, biasIdx)
-    error = abs(componentToTest - numericComponent)
-    #print(f"nc = {numericComponent}, ct = {componentToTest}, error is {error}")
-    return error
+    return abs(componentToTest - numericComponent)
 
 
 def numericWeightDeriv(weightNum, row, col):
     basisParam = basisWeight(weightNum, row, col)
-    change = lambda h: FourLayerNet.singleCost(inLayer, desOutLayer, params + h * basisParam)
+    change = lambda h: singleCost(inLayer, desOutLayer, params + h * basisParam)
     return (change(epsilon) - change(-epsilon)) / (2 * epsilon)
     
 

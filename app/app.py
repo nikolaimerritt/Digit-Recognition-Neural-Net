@@ -1,31 +1,13 @@
-from typing import ForwardRef
-from PIL import Image, ImageDraw
-import math
-import Params, FourLayerNet
-import numpy as np
+from PIL import ImageDraw, Image
 import tkinter
-from mnist import MNIST
-import mnist
-
-def pixelate(image: Image, pixels: int):
-    reducedImg = image.resize((pixels, pixels), Image.NEAREST)
-    magnifiedImg = reducedImg.resize((reducedImg.size[0] * pixels, reducedImg.size[1] * pixels), Image.NEAREST)
-    return reducedImg, magnifiedImg
-
-
-def imageToInputLayer(image: Image, pixels: int, rgbIx=0):
-    inputLayer = [
-        image.getpixel((r, c))[rgbIx]
-        for c in range(pixels) for r in range(pixels)
-    ]
-    return np.array(inputLayer)
-    
-    
-
+import math
+from app.ImageProcessing import pixelate, imageToInputLayer, inLayerToString
+from NeuralNet import Params, FourLayerNet, util
 
 appSize = 400
 pixels = 28
-lineWidth = math.ceil(appSize / pixels)
+lineWidth = 2 * math.ceil(appSize / pixels)
+
 app = tkinter.Tk()
 
 canvas = tkinter.Canvas(app, width=appSize, height=appSize, bg="black")
@@ -49,9 +31,12 @@ def drawLine(event):
 def onWindowClose():
     global image
     reducedImg, magnifiedImg = pixelate(image, pixels)
-    magnifiedImg.show()
     inLayer = imageToInputLayer(reducedImg, pixels)
-    print(f"Digit recognised as {FourLayerNet.recogniseDigit(inLayer, Params.loadFromFile())}")
+    with open("images/my-layer.txt", "w") as f:
+        f.write(inLayerToString(inLayer))
+    
+    params = Params.loadFromFile()
+    print(f"Digit recognised as \n{util.displayProbVector(FourLayerNet.calcOutLayer(inLayer, params))}")
     
     app.destroy()
 
@@ -60,4 +45,6 @@ canvas.bind("<Button-1>", getXandY)
 canvas.bind("<B1-Motion>", drawLine)
 
 app.protocol("WM_DELETE_WINDOW", onWindowClose)
-app.mainloop()
+
+def launch():
+    app.mainloop()

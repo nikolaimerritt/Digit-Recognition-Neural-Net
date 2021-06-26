@@ -1,9 +1,6 @@
 from typing import List
 import numpy as np
-import os
-
-def txtsInFolder(folder: str):
-    return [f for f in os.listdir(folder) if f.endswith(".txt")]
+from NeuralNet import util
 
 
 class Params:
@@ -59,14 +56,24 @@ class Params:
         return sum((weight * weight).sum() for weight in self.weights) + sum((bias * bias).sum() for bias in self.biases)
     
 
+    @classmethod
+    def random(cls, sizes: List[int]):
+        weightDims = [(sizes[i+1], sizes[i]) for i in range(len(sizes) - 1)]
+        biasDims = sizes[1 : len(sizes)]
 
-def loadFromFile(folder="params-values"):
-    weights = []
-    for weightFile in sorted(txtsInFolder(f"{folder}/weights")):
-        weights.append(np.genfromtxt(f"{folder}/weights/{weightFile}"))
-    
-    biases = []
-    for biasFile in sorted(txtsInFolder(f"{folder}/biases")):
-        biases.append(np.genfromtxt(f"{folder}/biases/{biasFile}"))
-    
-    return Params(weights, biases)
+        weights = [util.unbiasedMatrix(*dims) for dims in weightDims]
+        biases = [util.unbiasedVector(dim) for dim in biasDims]
+        return cls(weights, biases)
+
+
+    @classmethod
+    def loadFromFile(cls, folder="params-values"):
+        weights = []
+        for weightFile in sorted(util.txtsInFolder(f"{folder}/weights")):
+            weights.append(np.genfromtxt(f"{folder}/weights/{weightFile}"))
+        
+        biases = []
+        for biasFile in sorted(util.txtsInFolder(f"{folder}/biases")):
+            biases.append(np.genfromtxt(f"{folder}/biases/{biasFile}"))
+        
+        return cls(weights, biases)

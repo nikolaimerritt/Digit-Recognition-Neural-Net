@@ -1,8 +1,7 @@
 from random import shuffle
-from typing import List, Tuple
+from typing import List
 import numpy as np
-from numpy.core.fromnumeric import mean
-from Params import Params
+from NeuralNet.Params import Params
 
 def relu(x):
     return x * (x > 0)
@@ -23,27 +22,6 @@ def softmax(x):
 
 
 PREVENT_LOG_0: float = 10 ** -9
-
-def unbiasedVector(size):
-    """ vector is uniform, mean 0, entries [-1, 1)"""
-    return np.random.rand(size)
-
-def unbiasedMatrix(rows, cols):
-    """ matrix is uniform, mean 0, entries [-1, 1)"""
-    return np.random.rand(rows, cols)
-
-
-def getRandomParams(inLayerSize: int, fstLayerSize: int, sndLayerSize: int, thdLayerSize: int) -> Params:        
-    fstWeights = unbiasedMatrix(fstLayerSize, inLayerSize)
-    fstBiases = unbiasedVector(fstLayerSize) 
-    
-    sndWeights = unbiasedMatrix(sndLayerSize, fstLayerSize) 
-    sndBiases = unbiasedVector(sndLayerSize)
-    
-    thdWeights = unbiasedMatrix(thdLayerSize, sndLayerSize)
-    thdBiases = unbiasedVector(thdLayerSize)
-
-    return Params([fstWeights, sndWeights, thdWeights], [fstBiases, sndBiases, thdBiases]) / 100
 
 
 def calcHiddenLayers(inLayer: np.ndarray, params: Params):
@@ -149,25 +127,30 @@ def proportionCorrect(inLayers, desOutLayers, params):
     return correct / len(desOutLayers)
 
 
-def batchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params, batchSize=256, descents=10 ** 5) -> Params:
-    learningRate = 10 ** -4
+def saveBatchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params, testIn, testDesOut, batchSize=256, epochs=50) -> Params:
+    learningRate = 10 ** -2
     momentum = 0.9
 
     indices = list(range(len(inLayers)))
     paramsChange = Params.ZERO
     
-    for descent in range(descents):
+    print(" ---------- starting training ----------")
+    for _ in range(epochs):
         shuffle(indices)
-        inBatch = np.array([inLayers[indices[i]] for i in range(batchSize)])
-        desOutBatch = np.array([desOutLayers[indices[i]] for i in range(batchSize)])
         
-        futureGrad = meanParamsGrad(inBatch, desOutBatch, params + momentum * paramsChange)
-        paramsChange = momentum * paramsChange + (-learningRate) * futureGrad
-        params += paramsChange
+        for batchIdx in range(0, len(inLayers), batchSize):
+            batchIndices = indices[batchIdx : batchIdx + batchSize]
+            
+            inBatch = np.array([inLayers[idx] for idx in batchIndices])
+            desOutBatch = np.array([desOutLayers[idx] for idx in batchIndices])
+            
+            futureGrad = meanParamsGrad(inBatch, desOutBatch, params + momentum * paramsChange)
+            paramsChange = momentum * paramsChange + (-learningRate) * futureGrad
+            params += paramsChange
 
-
-        if descent > 0 and descent % 500 == 0:
-            print(f"saving :) \t mean cost = {meanCost(inLayers, desOutLayers, params):.6f} \t grad sq norm = {futureGrad.squaredNorm():.6f}")
-            params.saveToFile()
-
+        learningScore = proportionCorrect(inLayers, desOutLayers, params)
+        testingScore = proportionCorrect(testIn, testDesOut, params)
+        print(f"learning score = {100 * learningScore:.3f}% \t testing score = {100 * testingScore:.3f}% \t gsn = {futureGrad.squaredNorm():.6f}")
+        
+        params.saveToFile()
     return params
