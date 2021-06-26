@@ -19,8 +19,8 @@ def train():
     trainInLayers, trainingDesOutLayers = mnistDataToNumpyArrays(*mndata.load_training())
     testInLayers, testDesOutLayers = mnistDataToNumpyArrays(*mndata.load_testing())
     
-    params = Params.loadFromFile()
-    #params = Params.random([len(trainInLayers[0]), 200, 80, len(trainingDesOutLayers[0])])
+
+    params = Params.random([len(trainInLayers[0]), 200, 80, len(trainingDesOutLayers[0])])
     params = FourLayerNet.saveBatchGradDescent(trainInLayers, trainingDesOutLayers, params, testInLayers, testDesOutLayers)
 
     print(f"{100 * FourLayerNet.proportionCorrect(trainInLayers, trainingDesOutLayers, params):.2f}% of the training data guessed correctly")

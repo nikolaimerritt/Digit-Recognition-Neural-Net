@@ -1,8 +1,12 @@
+from tkinter.constants import W
 from PIL import ImageDraw, Image
 import tkinter
 import math
+from mnist import MNIST
+from app import ImageProcessing
 from app.ImageProcessing import pixelate, imageToInputLayer, inLayerToString
-from NeuralNet import Params, FourLayerNet, util
+from NeuralNet import FourLayerNet
+from NeuralNet.Params import Params
 
 appSize = 400
 pixels = 28
@@ -23,20 +27,23 @@ def getXandY(event):
 
 def drawLine(event):
     global lastX, lastY
-    canvas.create_line((lastX, lastY, event.x, event.y), fill="red", width=lineWidth)
-    drawing.line([(lastX, lastY), (event.x, event.y)], fill="red", width=lineWidth)
+    
+    canvas.create_line((lastX, lastY, event.x, event.y), fill="red", width=lineWidth, capstyle=tkinter.ROUND)
+    drawing.line([(lastX, lastY), (event.x, event.y)], fill="red", width=lineWidth, joint="curve")
+
     lastX, lastY = event.x, event.y
 
 
 def onWindowClose():
     global image
     reducedImg, magnifiedImg = pixelate(image, pixels)
-    inLayer = imageToInputLayer(reducedImg, pixels)
-    with open("images/my-layer.txt", "w") as f:
-        f.write(inLayerToString(inLayer))
     
-    params = Params.loadFromFile()
-    print(f"Digit recognised as \n{util.displayProbVector(FourLayerNet.calcOutLayer(inLayer, params))}")
+    inLayer = imageToInputLayer(reducedImg, pixels)
+    centredInLayer = ImageProcessing.centreInputLayer(inLayer)
+    
+    params = Params.loadFromFile("params-values")
+    outLayer = FourLayerNet.calcOutLayer(centredInLayer, params)
+    print(ImageProcessing.displayOutLayer(outLayer, width=50))
     
     app.destroy()
 

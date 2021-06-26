@@ -128,7 +128,7 @@ def proportionCorrect(inLayers, desOutLayers, params):
 
 
 def saveBatchGradDescent(inLayers: List[np.ndarray], desOutLayers: List[np.ndarray], params: Params, testIn, testDesOut, batchSize=256, epochs=50) -> Params:
-    learningRate = 10 ** -2
+    learningRate = 10 ** -3
     momentum = 0.9
 
     indices = list(range(len(inLayers)))
